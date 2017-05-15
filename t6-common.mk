@@ -70,10 +70,6 @@ WITH_CM_CHARGER := false
      fingerprint.msm8960 \
      ValidityService
 
-# Gello
-PRODUCT_PACKAGES += \
-    Gello
-
 # GPS
 PRODUCT_PACKAGES += \
     gps.msm8960
