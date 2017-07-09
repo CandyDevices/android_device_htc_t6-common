@@ -7,9 +7,13 @@ on early-init
     chown system system /sys/kernel/debug/kgsl/proc
 
 on init
-    export LD_SHIM_LIBS "/system/lib/hw/camera.vendor.msm8960.so|libcamera_shim.so:/system/vendor/lib/libqc-opt.so|libqc-opt_shim.so:/system/lib/liblog.so|liblog_shim.so"
+    export LD_SHIM_LIBS "/system/lib/hw/camera.vendor.msm8960.so|libcamera_shim.so:/system/vendor/lib/libqc-opt.so|libqc-opt_shim.so:/system/lib/liblog.so|liblog_shim.so:/system/lib/libril_qsc.so|libril_qscshim.so"
 
     symlink /sdcard /storage/sdcard0
+
+    # Setup ZRAM options
+    write /sys/block/zram0/comp_algorithm lz4
+    write /sys/block/zram0/max_comp_streams 2
 
     # For Invensense MPU3050
     chmod 0664 /sys/class/gyro_sensors/gyro/mpu_lpm_flag
@@ -170,6 +174,7 @@ on fs
     mkdir /firmware/wcnss 0771 system system
 
     mount_all ./fstab.qcom
+    swapon_all ./fstab.qcom
 
     mkdir /mnt/qcks 0700 root system
     mount tmpfs tmpfs /mnt/qcks size=20m,mode=0750,gid=1000
@@ -315,15 +320,24 @@ on boot
     chown system system /sys/class/power_supply/battery/navigation
     chmod 0220 /sys/class/power_supply/battery/navigation
 
-	# Fingerprint
+    # Fingerprint
     mkdir /dev/validity 0770 system system
     mkdir /data/validity 0770 system system
 
     # Fingerprint_sensor
     chown system system /sys/android_fingerprint/fpmount
     chown system system /sys/android_fingerprint/fpr
-    # chown system radio /sys/class/fingerprint/fingerprint/type_check
-	
+
+    chown system system /dev/htc_fingerprint
+    chmod 0660 /dev/htc_fingerprint
+    restorecon_recursive /dev/htc_fingerprint
+    restorecon_recursive /dev/validity
+    restorecon_recursive /dev/vfsspi
+
+    # Swappiness and memory pages
+    write /proc/sys/vm/page-cluster 0
+    write /proc/sys/vm/swappiness 40
+
     # Wake on volume
     write /sys/keyboard/vol_wakeup 1
 
@@ -339,7 +353,7 @@ service cir_fw_update /system/bin/cir_fw_update -u cir.img
     user root
     group root
     oneshot
-	
+
 service fingerprintd /system/bin/fingerprintd
     class late_start
     user system
@@ -387,27 +401,12 @@ service thermald /system/bin/thermald
     class main
     user root
     group root
-	
+
 service vcsFPService /system/bin/vcsFPService
     class late_start
-    user system
+    user root
     group system
 
-# service vcsFirmwareVersion /system/bin/vcsFirmwareVersion
-#     class late_start
-#     user system
-#     group system
-
-# service vcsSimpleEnrollMatch /system/bin/vcsSimpleEnrollMatch
-#     class late_start
-#     user system
-#     group system	
-
-service vcsSimpleCapture /system/bin/vcsSimpleCapture
-    class late_start
-    user system
-    group system
-	
 # WiFi
 service p2p_supplicant /system/bin/wpa_supplicant \
     -iwlan0 -Dnl80211 -c/data/misc/wifi/wpa_supplicant.conf \
